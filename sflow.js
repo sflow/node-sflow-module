@@ -494,8 +494,8 @@ function sample(serverID, req, res) {
 }
 
 var wrapHandler = function(serverID,fn) {
-  return function() {
-     sample(serverID,arguments[0],arguments[1]);
+  return function(req,res) {
+     sample(serverID,req,res);
      return fn.apply(this,arguments);
   }
 };
