@@ -504,7 +504,6 @@ exports.instrument = function(http) {
      var server = createServer.apply(this,arguments);
      var listen = server.listen;
      server.listen = function(port,addr) {
-       // use port number to guarantee a unique id
        startAgent(serverID,port,addr);
        return listen.apply(this,arguments);
      }
