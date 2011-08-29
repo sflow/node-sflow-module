@@ -356,7 +356,7 @@ function writeFlow(buf,offset,serverID,req,res,duration) {
   var mimeType = null;
   i = xdrString(buf,i,mimeType,32);
 
-  var resp_bytes = 0;
+  var resp_bytes = res.contentLength && res.contentLength > 0 ? res.contentLength : 0;
   i = xdrLong(buf,i,resp_bytes);
 
   i = xdrInt(buf,i,duration);
@@ -483,10 +483,14 @@ function sample(serverID, req, res) {
     return end.apply(this, arguments);
   }
   var writeHead = res.writeHead;
-  res.writeHead = function (code) {
+  res.writeHead = function (code,headers) {
     res.statusCode = code;
+    if(headers && typeof headers != 'string') {
+       res.contentLength = headers['Content-Length'];
+    }
     return writeHead.apply(this, arguments);
   }
+  var write = res.write
 }
 
 var wrapHandler = function(serverID,fn) {
@@ -500,7 +504,7 @@ exports.instrument = function(http) {
   var createServer = http.createServer;
   http.createServer = function(handler) {
      var serverID = createServerID();
-     arguments[0] = wrapHandler(serverID,arguments[0]);
+     arguments[0] = wrapHandler(serverID,handler);
      var server = createServer.apply(this,arguments);
      var listen = server.listen;
      server.listen = function(port,addr) {
