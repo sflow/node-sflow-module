@@ -490,7 +490,6 @@ function sample(serverID, req, res) {
     }
     return writeHead.apply(this, arguments);
   }
-  var write = res.write
 }
 
 var wrapHandler = function(serverID,fn) {
