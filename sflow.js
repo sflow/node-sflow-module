@@ -109,14 +109,8 @@ function xdrInt(buf,offset,val) {
 
 function xdrLong(buf,offset,val) {
   var i = offset;
-  buf[i++] = (val >>> 56) & 0xFF;
-  buf[i++] = (val >>> 48) & 0xFF;
-  buf[i++] = (val >>> 40) & 0xFF;
-  buf[i++] = (val >>> 32) & 0xFF;
-  buf[i++] = (val >>> 24) & 0xFF;
-  buf[i++] = (val >>> 16) & 0xFF;
-  buf[i++] = (val >>> 8) & 0xFF;
-  buf[i++] = val & 0xFF;
+  i = xdrInt(buf,i,Math.floor(val / 4294967296));
+  i = xdrInt(buf,i,val);
   return i;
 }
 
@@ -356,8 +350,8 @@ function writeFlow(buf,offset,serverID,req,res,duration) {
   var mimeType = null;
   i = xdrString(buf,i,mimeType,32);
 
-  var resp_bytes = res.contentLength && res.contentLength > 0 ? res.contentLength : 0;
-  i = xdrLong(buf,i,resp_bytes);
+  var bytes = res._sflow_bytes;
+  i = xdrLong(buf,i,bytes);
 
   i = xdrInt(buf,i,duration);
   i = xdrInt(buf,i,res.statusCode);
@@ -438,7 +432,8 @@ function startAgent(serverID,port,address) {
 }
 
 function sample(serverID, req, res) {
-  req._start_time = Date.now();
+  req._sflow_start = Date.now();
+  res._sflow_bytes = 0;
   var conn = req.connection;
   if(!conn.localAddress || !conn.localPort) {
     try {
@@ -450,7 +445,7 @@ function sample(serverID, req, res) {
     } catch(err) { ; }
   }
   var end = res.end;
-  res.end = function () {
+  res.end = function(data,encoding) {
     switch(req.method) {
       case "OPTION" : method_option_count++;  break;
       case "GET"    : method_get_count++;     break;
@@ -473,22 +468,26 @@ function sample(serverID, req, res) {
     else status_other_count++;
 
     sample_pool++; 
+   
+    if(data) res._sflow_bytes += data instanceof Buffer ? data.length : Buffer.byteLength(data,encoding);
+
     if(sampling_rate
        && Math.random() < sampling_threshold) {
       sample_count++;
-      var duration = req._start_time ? Date.now() - req._start_time : 0;
+      var duration = req._sflow_start ? Date.now() - req._sflow_start : 0;
       flowSample(serverID,req,res,duration);
     }
-
     return end.apply(this, arguments);
   }
   var writeHead = res.writeHead;
   res.writeHead = function (code,headers) {
     res.statusCode = code;
-    if(headers && typeof headers != 'string') {
-       res.contentLength = headers['Content-Length'];
-    }
     return writeHead.apply(this, arguments);
+  }
+  var write = res.write;
+  res.write = function(data,encoding) {
+    res._sflow_bytes = data instanceof Buffer ? data.length : Buffer.byteLength(data,encoding);
+    return write.apply(this,arguments);
   }
 }
 
