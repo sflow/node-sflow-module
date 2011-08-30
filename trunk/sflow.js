@@ -21,6 +21,7 @@
 
 var fs    = require('fs');
 var dgram = require('dgram');
+var Buffer = require('buffer').Buffer;
 
 var configFile           = '/etc/hsflowd.auto';
 var UNKNOWN_IP4          = [0,0,0,0];
@@ -469,7 +470,7 @@ function sample(serverID, req, res) {
 
     sample_pool++; 
    
-    if(data) res._sflow_bytes += data instanceof Buffer ? data.length : Buffer.byteLength(data,encoding);
+    if(data) res._sflow_bytes += Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data,encoding);
 
     if(sampling_rate
        && Math.random() < sampling_threshold) {
@@ -486,7 +487,7 @@ function sample(serverID, req, res) {
   }
   var write = res.write;
   res.write = function(data,encoding) {
-    res._sflow_bytes = data instanceof Buffer ? data.length : Buffer.byteLength(data,encoding);
+    if(data) res._sflow_bytes = Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data,encoding);
     return write.apply(this,arguments);
   }
 }
