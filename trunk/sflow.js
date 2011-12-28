@@ -308,7 +308,7 @@ function writeFlow(buf,offset,serverID,req,res,duration) {
   i = xdrInt(buf,i,0); // input interface
   i = xdrInt(buf,i,0x3FFFFFFF); // output interface
   i = xdrInt(buf,i, req.connection ? 2 : 1); // number of records
-  i = xdrInt(buf,i,2201); // data format
+  i = xdrInt(buf,i,2206); // data format
 
   // make space for opaque length
   var opaque_len_idx = i;
@@ -336,23 +336,29 @@ function writeFlow(buf,offset,serverID,req,res,duration) {
   i = xdrString(buf,i,req.url,255);
 
   var host = req.headers['host'];
-  i = xdrString(buf,i,host,32);
+  i = xdrString(buf,i,host,64);
 
   // referer
   var referer = req.headers['referer'];
   i = xdrString(buf,i,referer,255);
 
   var useragent = req.headers['user-agent'];
-  i = xdrString(buf,i,useragent,64);
+  i = xdrString(buf,i,useragent,128);
+
+  var xff = req.headers['x-forwarded-for'];
+  i = xdrString(buf,i,xff,64);
 
   var authuser = null;
   i = xdrString(buf,i,authuser,32);
 
   var mimeType = null;
-  i = xdrString(buf,i,mimeType,32);
+  i = xdrString(buf,i,mimeType,64);
 
-  var bytes = res._sflow_bytes;
-  i = xdrLong(buf,i,bytes);
+  var bytes_read = 0;
+  i = xdrLong(buf,i,bytes_read);
+
+  var bytes_written = res._sflow_bytes;
+  i = xdrLong(buf,i,bytes_written);
 
   i = xdrInt(buf,i,duration);
   i = xdrInt(buf,i,res.statusCode);
